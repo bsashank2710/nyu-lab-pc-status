@@ -1,0 +1,5 @@
+Flask==1.1.1
+python-dotenv==0.12.0
+Flask-Bootstrap4==4.0.2
+flask-sqlalchemy==2.4.1
+flask-migrate==2.5.2

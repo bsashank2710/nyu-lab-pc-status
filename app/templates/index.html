@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+
+{% block app_content %}
+
+  <table class="table table-sm table-bordered table-hover">
+    <thead>
+      <tr>
+        <th scope="col" class="text-center align-middle">Domain Name</th>
+        <th scope="col" class="text-center align-middle">IP Address</th>
+        <th scope="col" class="text-center align-middle">Username</th>
+        <th scope="col" class="text-center align-middle">Session</th>
+        <th scope="col" class="text-center align-middle">ID</th>
+        <th scope="col" class="text-center align-middle">State</th>
+        <th scope="col" class="text-center align-middle">Idle Time</th>
+        <th scope="col" class="text-center align-middle">Logon Time</th>
+        <th scope="col" class="text-center align-middle">Last Update</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for key, value in status_dict.items() %}
+        <tr>
+          <td>{{ key }}</td>
+          <td>{{ value[0] if value[0] else '' }}</td>
+          <td>{{ value[1] if value[1] else '' }}</td>
+          <td>{{ value[2] if value[2] else '' }}</td>
+          <td>{{ value[3] if value[3] else '' }}</td>
+          {% if value[4] == 'Available' %}
+            <td><span class="text-success">{{ value[4] }}</span></td>
+          {% elif value[4] == 'System Down' %}
+            <td><span class="text-danger">{{ value[4] }}</span></td>
+          {% else %}
+            <td><span class="text-warning">{{ value[4] }}</span></td>
+          {% endif %}
+
+          <td>{{ value[5] if value[5] else '' }}</td>
+          <td>{{ value[6] if value[6] else '' }}</td>
+          <td>{{ value[7].strftime('%m/%d/%Y %I:%M %p') }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+{% endblock %}
