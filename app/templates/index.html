@@ -1,7 +1,47 @@
 {% extends "base.html" %}
 
+{% block nav_text %}
+<span class="navbar-text">
+  <span class="badge badge-pill badge-secondary">{{ w_count }}</span>
+  available workstations
+</span>
+{% endblock %}
 
 {% block app_content %}
+
+  <div class="alert alert-danger text-center" role="alert">
+    As a courtesy to your colleagues, please <strong>ALWAYS SIGN OUT</strong> after you finish your work.
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-header">
+      <strong>Instructions</strong>
+    </div>
+    <div class="card-body p-0">
+      <p class="card-text">
+        <ol>
+          <li>
+            We are using <em>Microsoft Remote Desktop (RDP)</em> to remotely connect to the lab workstations.
+            For Microsoft Windows computers, RDP is pre-installed. For Mac OSX computers, you can download RDP
+            for free from the Mac App Store (<a href="https://apps.apple.com/us/app/microsoft-remote-desktop-10/id1295203466?mt=12">link</a>).
+          </li>
+          <li>
+            You need to initiate an NYU VPN connection in order to use the lab workstations when off-campus.
+            Detailed instructions about NYU VPN are <a href="https://www.nyu.edu/life/information-technology/getting-started/network-and-connectivity/vpn.html">here</a>.
+          </li>
+          <li>
+            Search for an available workstation from the list below. Click on the connection file download link and open the associated file with RDP.
+          </li>
+          <li>
+            When prompted for a username and password, connect with <code>AD\YourNetID</code> and your NYU password.
+          </li>
+          <li>
+            <strong>Always sign out</strong> after you finish your work. We can force logoff users without warning and all work may be lost.
+          </li>
+        </ol>
+      </p>
+    </div>
+  </div>
 
   <table class="table table-sm table-bordered table-hover">
     <thead>
@@ -12,6 +52,7 @@
         <th scope="col" class="text-center align-middle">Session</th>
         <th scope="col" class="text-center align-middle">ID</th>
         <th scope="col" class="text-center align-middle">State</th>
+        <th scope="col" class="text-center align-middle">RDP File</th>
         <th scope="col" class="text-center align-middle">Idle Time</th>
         <th scope="col" class="text-center align-middle">Logon Time</th>
         <th scope="col" class="text-center align-middle">Last Update</th>
@@ -32,7 +73,13 @@
           {% else %}
             <td><span class="text-warning">{{ value[4] }}</span></td>
           {% endif %}
-
+          <td>
+            {% if value[4] == 'Available' %}
+              <a href="{{ url_for('get_rdp_file', domain_name=key) }}">
+                download
+              </a>
+            {% endif %}
+          </td>
           <td>{{ value[5] if value[5] else '' }}</td>
           <td>{{ value[6] if value[6] else '' }}</td>
           <td>{{ value[7].strftime('%m/%d/%Y %I:%M %p') }}</td>
