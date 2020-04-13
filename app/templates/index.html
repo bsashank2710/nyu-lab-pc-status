@@ -3,7 +3,7 @@
 {% block nav_text %}
 <span class="navbar-text">
   <span class="badge badge-pill badge-secondary">{{ w_count }}</span>
-  available workstations
+  workstations available
 </span>
 {% endblock %}
 
@@ -33,15 +33,20 @@
             Search for an available workstation from the list below. Click on the connection file download link and open the associated file with RDP.
           </li>
           <li>
-            When prompted for a username and password, connect with <code>AD\YourNetID</code> and your NYU password.
+            When prompted for a username and password, connect with <code>AD\YourNetID</code> (e.g., AD\abc123) and your NYU password.
           </li>
           <li>
-            <strong>Always sign out</strong> after you finish your work. We can force logoff users without warning and all work may be lost.
+            Remember that we have many students in need of the lab and only have a limited number of workstations at this time.
+            If we detect abuse of the system we will remove your access. Please limit your usage to no more than <strong>3 hours per day</strong>.
+            Simply plan accordingly to do only what is necessary in the lab. <strong>Always sign out</strong> after you finish your work.
           </li>
         </ol>
       </p>
     </div>
   </div>
+
+  <h3>Rogers Hall Room 217</h3>
+  <hr class="mt-0">
 
   <table class="table table-sm table-bordered table-hover">
     <thead>
@@ -60,6 +65,7 @@
     </thead>
     <tbody>
       {% for key, value in status_dict.items() %}
+        {% if key[:5] == "CUE03" %}
         <tr>
           <td>{{ key }}</td>
           <td>{{ value[0] if value[0] else '' }}</td>
@@ -84,8 +90,113 @@
           <td>{{ value[6] if value[6] else '' }}</td>
           <td>{{ value[7].strftime('%m/%d/%Y %I:%M %p') }}</td>
         </tr>
+        {% endif %}
       {% endfor %}
     </tbody>
   </table>
+
+
+  <h3>15 Metrotech</h3>
+  <hr class="mt-0">
+
+  <table class="table table-sm table-bordered table-hover">
+    <thead>
+      <tr>
+        <th scope="col" class="text-center align-middle">Domain Name</th>
+        <th scope="col" class="text-center align-middle">IP Address</th>
+        <th scope="col" class="text-center align-middle">Username</th>
+        <th scope="col" class="text-center align-middle">Session</th>
+        <th scope="col" class="text-center align-middle">ID</th>
+        <th scope="col" class="text-center align-middle">State</th>
+        <th scope="col" class="text-center align-middle">RDP File</th>
+        <th scope="col" class="text-center align-middle">Idle Time</th>
+        <th scope="col" class="text-center align-middle">Logon Time</th>
+        <th scope="col" class="text-center align-middle">Last Update</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for key, value in status_dict.items() %}
+        {% if key[:5] == "CUE04" %}
+        <tr>
+          <td>{{ key }}</td>
+          <td>{{ value[0] if value[0] else '' }}</td>
+          <td>{{ value[1] if value[1] else '' }}</td>
+          <td>{{ value[2] if value[2] else '' }}</td>
+          <td>{{ value[3] if value[3] else '' }}</td>
+          {% if value[4] == 'Available' %}
+            <td><span class="text-success">{{ value[4] }}</span></td>
+          {% elif value[4] == 'System Down' %}
+            <td><span class="text-danger">{{ value[4] }}</span></td>
+          {% else %}
+            <td><span class="text-warning">{{ value[4] }}</span></td>
+          {% endif %}
+          <td>
+            {% if value[4] == 'Available' %}
+              <a href="{{ url_for('get_rdp_file', domain_name=key) }}">
+                download
+              </a>
+            {% endif %}
+          </td>
+          <td>{{ value[5] if value[5] else '' }}</td>
+          <td>{{ value[6] if value[6] else '' }}</td>
+          <td>{{ value[7].strftime('%m/%d/%Y %I:%M %p') }}</td>
+        </tr>
+        {% endif %}
+      {% endfor %}
+    </tbody>
+  </table>
+
+
+
+  <h3>2 Metrotech Room 813</h3>
+  <hr class="mt-0">
+
+  <table class="table table-sm table-bordered table-hover">
+    <thead>
+      <tr>
+        <th scope="col" class="text-center align-middle">Domain Name</th>
+        <th scope="col" class="text-center align-middle">IP Address</th>
+        <th scope="col" class="text-center align-middle">Username</th>
+        <th scope="col" class="text-center align-middle">Session</th>
+        <th scope="col" class="text-center align-middle">ID</th>
+        <th scope="col" class="text-center align-middle">State</th>
+        <th scope="col" class="text-center align-middle">RDP File</th>
+        <th scope="col" class="text-center align-middle">Idle Time</th>
+        <th scope="col" class="text-center align-middle">Logon Time</th>
+        <th scope="col" class="text-center align-middle">Last Update</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for key, value in status_dict.items() %}
+        {% if key[:4] == "CUSP" %}
+        <tr>
+          <td>{{ key }}</td>
+          <td>{{ value[0] if value[0] else '' }}</td>
+          <td>{{ value[1] if value[1] else '' }}</td>
+          <td>{{ value[2] if value[2] else '' }}</td>
+          <td>{{ value[3] if value[3] else '' }}</td>
+          {% if value[4] == 'Available' %}
+            <td><span class="text-success">{{ value[4] }}</span></td>
+          {% elif value[4] == 'System Down' %}
+            <td><span class="text-danger">{{ value[4] }}</span></td>
+          {% else %}
+            <td><span class="text-warning">{{ value[4] }}</span></td>
+          {% endif %}
+          <td>
+            {% if value[4] == 'Available' %}
+              <a href="{{ url_for('get_rdp_file', domain_name=key) }}">
+                download
+              </a>
+            {% endif %}
+          </td>
+          <td>{{ value[5] if value[5] else '' }}</td>
+          <td>{{ value[6] if value[6] else '' }}</td>
+          <td>{{ value[7].strftime('%m/%d/%Y %I:%M %p') }}</td>
+        </tr>
+        {% endif %}
+      {% endfor %}
+    </tbody>
+  </table>
+
 
 {% endblock %}

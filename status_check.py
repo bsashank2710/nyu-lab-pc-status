@@ -32,8 +32,15 @@ def status_check():
 
             if len(msg) > 0:
                 msg = msg.split('\n')[1].split()
-                if len(msg[1]) < 2:
+                if len(msg[1]) < 3:
                     msg.insert(1, None)
+
+                if msg[3] == 'Disc':
+                    subprocess.Popen(
+                        'Logoff {} /server:{}'.format(msg[2], name),
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.DEVNULL,
+                        shell=True).communicate()
 
                 stat = Status(
                     domain_name = name,
@@ -61,4 +68,4 @@ if __name__ == '__main__':
         print('--> Check No. {}'.format(i))
         status_check()
         i += 1
-        time.sleep(60)
+        time.sleep(30)
