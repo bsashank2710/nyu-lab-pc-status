@@ -1,2 +1,2 @@
 FLASK_APP=status_app.py
-FLASK_ENV=development
+DATABASE_URL="postgresql://postgres:password@localhost:5432/status_app"

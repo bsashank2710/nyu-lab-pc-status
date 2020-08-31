@@ -5,6 +5,7 @@ import time
 
 def status_check():
     for name in pc_names.keys():
+        print(name)
         ping = subprocess.Popen(
             'ping -n 1 {}'.format(name),
             stdout=subprocess.PIPE,
