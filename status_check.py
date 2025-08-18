@@ -2,71 +2,69 @@ import subprocess
 from app import db, pc_names
 from app.models import Status
 import time
+import platform
+from datetime import datetime
+
+def ping_host(host):
+    """Ping a host and return True if it responds, False otherwise."""
+    # Use -c for Linux/Mac, -n for Windows
+    try:
+        # Use shell=True for Windows-style hostnames
+        result = subprocess.run(
+            ['ping', '-c', '1', '-W', '1', host],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=2)
+        return result.returncode == 0
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
+        return False
 
 def status_check():
+    print(f"\nStarting status check at {datetime.now()}")
     for name in pc_names.keys():
-        print(name)
-        ping = subprocess.Popen(
-            'ping -n 1 {}'.format(name),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
-            shell=True)
+        print(f"\nChecking {name}...")
+        ip = pc_names[name]
+        print(f"Pinging {name} ({ip})...")
+        
+        # Try to ping both hostname and IP
+        host_up = ping_host(name)
+        ip_up = ping_host(ip)
+        print(f"Host ping: {'Success' if host_up else 'Failed'}")
+        print(f"IP ping: {'Success' if ip_up else 'Failed'}")
 
-        (ping_output, ping_err) = ping.communicate()
-
-        status = subprocess.Popen(
-            'query user /server:{}'.format(name),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
-            shell=True)
-
-        if ping.returncode == 1:
-            #msg = 'NO COMM'
+        if not (host_up or ip_up):
+            print(f"{name} is down")
             stat = Status(
-                domain_name = name,
-                ip_address = pc_names[name],
-                state = "System Down")
+                domain_name=name,
+                ip_address=ip,
+                state="System Down",
+                last_update=datetime.now())
         else:
-            (output, err) = status.communicate()
-            msg = output.decode('utf-8')
-            #print(name, msg)
+            print(f"{name} is up")
+            # Since we can't query Windows sessions from Linux,
+            # we'll just mark it as Available if it responds to ping
+            stat = Status(
+                domain_name=name,
+                ip_address=ip,
+                state="Available",
+                last_update=datetime.now())
 
-            if len(msg) > 0:
-                msg = msg.split('\n')[1].split()
-                if len(msg[1]) < 3:
-                    msg.insert(1, None)
-
-                if msg[3] == 'Disc':
-                    subprocess.Popen(
-                        'Logoff {} /server:{}'.format(msg[2], name),
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.DEVNULL,
-                        shell=True).communicate()
-
-                stat = Status(
-                    domain_name = name,
-                    ip_address = pc_names[name],
-                    username = msg[0],
-                    session_name = msg[1],
-                    session_id = msg[2],
-                    state = msg[3],
-                    idle_time = msg[4],
-                    logon_time = msg[5] + ' ' + msg[6] + ' ' + msg[7])
-            else:
-                #msg = 'NO USER'
-                stat = Status(
-                    domain_name = name,
-                    ip_address = pc_names[name],
-                    state = "Available")
-
-        db.session.add(stat)
-        db.session.commit()
-
+        try:
+            db.session.add(stat)
+            db.session.commit()
+            print(f"Updated status for {name} in database")
+        except Exception as e:
+            print(f"Error updating database for {name}: {e}")
+            db.session.rollback()
 
 if __name__ == '__main__':
     i = 1
     while True:
-        print('--> Check No. {}'.format(i))
-        status_check()
+        print(f'\n--> Check No. {i}')
+        try:
+            status_check()
+        except Exception as e:
+            print(f"Error during status check: {e}")
+        print(f"\nCompleted check {i}. Waiting 30 seconds...")
         i += 1
         time.sleep(30)

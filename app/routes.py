@@ -7,6 +7,8 @@ from app.models import Status
 @app.route('/index')
 def index():
     status_dict = {}
+    w_count = 0
+    d_count = 0
     for name in pc_names.keys():
         try:
             stat = (
@@ -14,18 +16,24 @@ def index():
                 .filter_by(domain_name=name)
                 .order_by(Status.last_update.desc())
                 .first())
-            status_dict[name] = [
-                stat.ip_address, stat.username, stat.session_name,
-                stat.session_id, stat.state, stat.idle_time,
-                stat.logon_time, stat.last_update]
-        except AttributeError:
-            pass
-        w_count = 0
-        for i in status_dict.values():
-            if i[4] == 'Available':
-                w_count += 1
-    return render_template('index.html', title='Home', status_dict=status_dict,
-                           w_count=w_count)
+            if stat:
+                status_dict[name] = [
+                    stat.ip_address, stat.username, stat.session_name,
+                    stat.session_id, stat.state, stat.idle_time,
+                    stat.logon_time, stat.last_update]
+                if stat.state == 'Available':
+                    w_count += 1
+                elif stat.state == 'System Down':
+                    d_count += 1
+        except Exception as e:
+            print(f"Error getting status for {name}: {e}")
+            continue
+    
+    return render_template('index.html', 
+                         title='Home', 
+                         status_dict=status_dict,
+                         w_count=w_count,
+                         d_count=d_count)
 
 
 rdp_file_contents = """gatewaybrokeringtype:i:0

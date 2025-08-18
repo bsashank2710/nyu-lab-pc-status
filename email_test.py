@@ -13,7 +13,7 @@ msg.set_content('This is a test')
 # you == the recipient's email address
 msg['Subject'] = 'Test Python Email'
 msg['From'] = 'no-reply@nyu.edu'
-msg['To'] = 'nm1213@nyu.edu'
+msg['To'] = 'cmn10@nyu.edu'
 
 # Send the message via our own SMTP server.
 s = smtplib.SMTP('smtp.nyu.edu', 25)

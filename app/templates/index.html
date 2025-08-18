@@ -1,202 +1,304 @@
 {% extends "base.html" %}
 
-{% block nav_text %}
-<span class="navbar-text">
-  <span class="badge badge-pill badge-secondary">{{ w_count }}</span>
-  workstations available
-</span>
-{% endblock %}
-
-{% block app_content %}
-
-  <div class="alert alert-danger text-center" role="alert">
-    As a courtesy to your colleagues, please <strong>ALWAYS SIGN OUT</strong> after you finish your work.
-  </div>
-
-  <div class="card mb-3">
-    <div class="card-header">
-      <strong>Instructions</strong>
+{% block content %}
+    <!-- Stats -->
+    <div class="stats">
+        <div class="stat-card">
+            <div class="stat-label">Available</div>
+            <div class="stat-value">{{ w_count }}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">In Use</div>
+            <div class="stat-value">{{ status_dict|length - w_count - d_count }}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Down</div>
+            <div class="stat-value">{{ d_count }}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Total</div>
+            <div class="stat-value">{{ status_dict|length }}</div>
+        </div>
     </div>
-    <div class="card-body p-0">
-      <p class="card-text">
-        <ol>
-          <li>
-            We are using <em>Microsoft Remote Desktop (RDP)</em> to remotely connect to the lab workstations.
-            For Microsoft Windows computers, RDP is pre-installed. For Mac OSX computers, you can download RDP
-            for free from the Mac App Store (<a href="https://apps.apple.com/us/app/microsoft-remote-desktop-10/id1295203466?mt=12">link</a>).
-          </li>
-          <li>
-            You need to initiate an NYU VPN connection in order to use the lab workstations when off-campus.
-            Detailed instructions about NYU VPN are <a href="https://www.nyu.edu/life/information-technology/getting-started/network-and-connectivity/vpn.html">here</a>.
-          </li>
-          <li>
-            Search for an available workstation from the list below. Click on the connection file download link and open the associated file with RDP.
-          </li>
-          <li>
-            When prompted for a username and password, connect with <code>AD\YourNetID</code> (e.g., AD\abc123) and your NYU password.
-          </li>
-          <li>
-            Remember that we have many students in need of the lab and only have a limited number of workstations at this time.
-            If we detect abuse of the system we will remove your access. Please limit your usage to no more than <strong>3 hours per day</strong>.
-            Simply plan accordingly to do only what is necessary in the lab. <strong>Always sign out</strong> after you finish your work.
-          </li>
-        </ol>
-      </p>
+
+    <!-- Alert -->
+    <div class="alert">
+        As a courtesy to your colleagues, please <strong>ALWAYS SIGN OUT</strong> after you finish your work.
     </div>
-  </div>
 
-  <h3>Rogers Hall Room 217</h3>
-  <hr class="mt-0">
+    <!-- Instructions -->
+    <div class="instructions">
+        <div class="instructions-header">
+            Instructions
+        </div>
+        <div class="instructions-body">
+            <div class="os-instructions">
+                <div class="os-section">
+                    <div class="os-title">
+                        <svg viewBox="0 0 24 24"><path fill="currentColor" d="M3 5.3v13.4l7-1V6.3zm8.5-1.1v13.8l8.5-1.2V4z"/></svg>
+                        Windows Instructions
+                    </div>
+                    <ol>
+                        <li>Remote Desktop is pre-installed on Windows. Launch it by:
+                            <ul>
+                                <li>Press <code class="mono">Win + R</code></li>
+                                <li>Type <code class="mono">mstsc</code></li>
+                                <li>Press Enter</li>
+                            </ul>
+                        </li>
+                        <li>Click the "Download RDP" button for an available workstation</li>
+                        <li>Open the .rdp file with Remote Desktop Connection</li>
+                        <li>When prompted, enter <code class="mono">AD\YourNetID</code> and your NYU password</li>
+                    </ol>
+                </div>
 
-  <table class="table table-sm table-bordered table-hover">
-    <thead>
-      <tr>
-        <th scope="col" class="text-center align-middle">Domain Name</th>
-        <th scope="col" class="text-center align-middle">IP Address</th>
-        <th scope="col" class="text-center align-middle">Username</th>
-        <th scope="col" class="text-center align-middle">Session</th>
-        <th scope="col" class="text-center align-middle">ID</th>
-        <th scope="col" class="text-center align-middle">State</th>
-        <th scope="col" class="text-center align-middle">RDP File</th>
-        <th scope="col" class="text-center align-middle">Idle Time</th>
-        <th scope="col" class="text-center align-middle">Logon Time</th>
-        <th scope="col" class="text-center align-middle">Last Update</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for key, value in status_dict.items() %}
-        {% if key[:5] == "CUE03" %}
-        <tr>
-          <td>{{ key }}</td>
-          <td>{{ value[0] if value[0] else '' }}</td>
-          <td>{{ value[1] if value[1] else '' }}</td>
-          <td>{{ value[2] if value[2] else '' }}</td>
-          <td>{{ value[3] if value[3] else '' }}</td>
-          {% if value[4] == 'Available' %}
-            <td><span class="text-success">{{ value[4] }}</span></td>
-          {% elif value[4] == 'System Down' %}
-            <td><span class="text-danger">{{ value[4] }}</span></td>
-          {% else %}
-            <td><span class="text-warning">{{ value[4] }}</span></td>
-          {% endif %}
-          <td>
-            {% if value[4] == 'Available' %}
-              <a href="{{ url_for('get_rdp_file', domain_name=key) }}">
-                download
-              </a>
-            {% endif %}
-          </td>
-          <td>{{ value[5] if value[5] else '' }}</td>
-          <td>{{ value[6] if value[6] else '' }}</td>
-          <td>{{ value[7].strftime('%m/%d/%Y %I:%M %p') }}</td>
-        </tr>
-        {% endif %}
-      {% endfor %}
-    </tbody>
-  </table>
+                <div class="os-section">
+                    <div class="os-title">
+                        <svg viewBox="0 0 24 24"><path fill="currentColor" d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+                        Mac Instructions
+                    </div>
+                    <ol>
+                        <li>Download Microsoft Remote Desktop from the <a href="https://apps.apple.com/us/app/microsoft-remote-desktop-10/id1295203466?mt=12">Mac App Store</a></li>
+                        <li>Install and open Microsoft Remote Desktop</li>
+                        <li>Click the "Download RDP" button for an available workstation</li>
+                        <li>Open the .rdp file with Microsoft Remote Desktop</li>
+                        <li>When prompted, enter <code class="mono">AD\YourNetID</code> and your NYU password</li>
+                    </ol>
+                </div>
 
+                <div class="os-section">
+                    <div class="os-title">
+                        <svg viewBox="0 0 24 24"><path fill="currentColor" d="M14.62 8.35c-.42.28-1.75-.5-2.38-.5s-1.96.78-2.38.5c-.42-.28.68-1.99 2.38-1.99s2.8 1.71 2.38 1.99M9.19 12.35c-.24.27-.3 1.01-.05 1.77.24.76.69 1.16.94.89.24-.27.3-1.01.05-1.77-.24-.76-.69-1.16-.94-.89m5.62 0c-.25-.27-.69.13-.94.89-.24.76-.19 1.5.05 1.77s.69-.13.94-.89c.25-.76.19-1.49-.05-1.77M21.59 14c0 .55-.03 1.09-.09 1.61l-6.93 2.9a6.003 6.003 0 0 1-5.14 0L2.5 15.61c-.06-.52-.09-1.06-.09-1.61 0-4.42 2.28-8.47 6.1-10.72L12 2l3.49 1.28C19.31 5.53 21.59 9.58 21.59 14m-2.04 1.42c.04-.4.06-.81.06-1.42 0-3.95-2.05-7.56-5.45-9.53l-2.16-.79-2.16.79c-3.4 1.97-5.45 5.58-5.45 9.53 0 .61.02 1.01.06 1.42l5.69 2.37c.49.23 1.06.35 1.65.35.59 0 1.16-.12 1.65-.35l5.69-2.37M10.07 17.38c-.31.03-.64-.1-.79-.35-.2-.34-.07-.77.27-.97.34-.2.77-.07.97.27.2.34.07.77-.27.97-.06.03-.12.06-.18.08m3.86 0c-.06-.02-.12-.05-.18-.08-.34-.2-.47-.63-.27-.97s.63-.47.97-.27c.34.2.47.63.27.97-.15.25-.48.38-.79.35z"/></svg>
+                        Linux Instructions
+                    </div>
+                    <ol>
+                        <li>Install Remmina Remote Desktop Client:
+                            <ul>
+                                <li>Ubuntu/Debian: <code class="mono">sudo apt install remmina</code></li>
+                                <li>Fedora: <code class="mono">sudo dnf install remmina</code></li>
+                                <li>Other: Use your distribution's package manager</li>
+                            </ul>
+                        </li>
+                        <li>Launch Remmina</li>
+                        <li>Click the "Copy IP" button for an available workstation</li>
+                        <li>In Remmina:
+                            <ul>
+                                <li>Click the + button to create a new connection</li>
+                                <li>Select RDP protocol</li>
+                                <li>Paste the copied IP address</li>
+                                <li>Set username to <code class="mono">AD\YourNetID</code></li>
+                            </ul>
+                        </li>
+                        <li>Connect and enter your NYU password when prompted</li>
+                    </ol>
+                </div>
+            </div>
 
-  <h3>15 Metrotech</h3>
-  <hr class="mt-0">
+            <div class="common-instructions">
+                <div class="os-title">Common Requirements</div>
+                <ul>
+                    <li>You need to initiate an NYU VPN connection to use the lab workstations when off-campus.
+                        Detailed instructions about NYU VPN are <a href="https://www.nyu.edu/life/information-technology/getting-started/network-and-connectivity/vpn.html">here</a>.
+                    </li>
+                    <li>Please limit your usage to no more than <strong>3 hours per day</strong>.</li>
+                    <li><strong>Always sign out</strong> after you finish your work.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
 
-  <table class="table table-sm table-bordered table-hover">
-    <thead>
-      <tr>
-        <th scope="col" class="text-center align-middle">Domain Name</th>
-        <th scope="col" class="text-center align-middle">IP Address</th>
-        <th scope="col" class="text-center align-middle">Username</th>
-        <th scope="col" class="text-center align-middle">Session</th>
-        <th scope="col" class="text-center align-middle">ID</th>
-        <th scope="col" class="text-center align-middle">State</th>
-        <th scope="col" class="text-center align-middle">RDP File</th>
-        <th scope="col" class="text-center align-middle">Idle Time</th>
-        <th scope="col" class="text-center align-middle">Logon Time</th>
-        <th scope="col" class="text-center align-middle">Last Update</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for key, value in status_dict.items() %}
-        {% if key[:5] == "CUE04" %}
-        <tr>
-          <td>{{ key }}</td>
-          <td>{{ value[0] if value[0] else '' }}</td>
-          <td>{{ value[1] if value[1] else '' }}</td>
-          <td>{{ value[2] if value[2] else '' }}</td>
-          <td>{{ value[3] if value[3] else '' }}</td>
-          {% if value[4] == 'Available' %}
-            <td><span class="text-success">{{ value[4] }}</span></td>
-          {% elif value[4] == 'System Down' %}
-            <td><span class="text-danger">{{ value[4] }}</span></td>
-          {% else %}
-            <td><span class="text-warning">{{ value[4] }}</span></td>
-          {% endif %}
-          <td>
-            {% if value[4] == 'Available' %}
-              <a href="{{ url_for('get_rdp_file', domain_name=key) }}">
-                download
-              </a>
-            {% endif %}
-          </td>
-          <td>{{ value[5] if value[5] else '' }}</td>
-          <td>{{ value[6] if value[6] else '' }}</td>
-          <td>{{ value[7].strftime('%m/%d/%Y %I:%M %p') }}</td>
-        </tr>
-        {% endif %}
-      {% endfor %}
-    </tbody>
-  </table>
+    <!-- Status Legend -->
+    <div class="status-legend">
+        <div class="legend-item" data-tooltip="Machine is free to use">
+            <div class="legend-dot available"></div>
+            Available
+        </div>
+        <div class="legend-item" data-tooltip="Machine is currently in use">
+            <div class="legend-dot inuse"></div>
+            In Use
+        </div>
+        <div class="legend-item" data-tooltip="Machine is not responding">
+            <div class="legend-dot down"></div>
+            Down
+        </div>
+        <div class="density-toggle">
+            <button class="density-btn" data-density="comfortable" data-active="true">Comfortable</button>
+            <button class="density-btn" data-density="compact">Compact</button>
+        </div>
+    </div>
 
+    <!-- Search and Filters -->
+    <div class="toolbar">
+        <input type="text" id="search" class="search" placeholder="Search domain, IP, user...">
+        <button class="btn" data-filter="all" data-active="true">All</button>
+        <button class="btn" data-filter="available">Available</button>
+        <button class="btn" data-filter="inuse">In Use</button>
+        <button class="btn" data-filter="down">Down</button>
+    </div>
 
+    <!-- Lab Section -->
+    <div class="table-container">
+        <table data-density="comfortable">
+            <thead>
+                <tr>
+                    <th>Domain Name</th>
+                    <th>IP Address</th>
+                    <th>Username</th>
+                    <th>Session</th>
+                    <th>ID</th>
+                    <th class="sortable" data-sort="none">State</th>
+                    <th>Actions</th>
+                    <th class="sortable" data-sort="none">Idle Time</th>
+                    <th>Logon Time</th>
+                    <th class="sortable" data-sort="none">Last Update</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for key, value in status_dict.items() %}
+                    {% if key[:5] == "ENG-R" %}
+                    <tr tabindex="0">
+                        <td data-label="Domain Name">{{ key }}</td>
+                        <td data-label="IP Address" class="mono">{{ value[0] if value[0] else '' }}</td>
+                        <td data-label="Username">{{ value[1] if value[1] else '' }}</td>
+                        <td data-label="Session">{{ value[2] if value[2] else '' }}</td>
+                        <td data-label="ID">{{ value[3] if value[3] else '' }}</td>
+                        <td data-label="State">
+                            {% if value[4] == 'Available' %}
+                                <span class="chip chip-available" data-state="available" data-tooltip="Machine is free to use">{{ value[4] }}</span>
+                            {% elif value[4] == 'System Down' %}
+                                <span class="chip chip-down" data-state="down" data-tooltip="Machine is not responding">{{ value[4] }}</span>
+                            {% else %}
+                                <span class="chip chip-idle" data-state="inuse" data-tooltip="Machine is currently in use">{{ value[4] }}</span>
+                            {% endif %}
+                        </td>
+                        <td data-label="Actions">
+                            <div class="actions">
+                                <button class="action-btn copy-ip" data-ip="{{ value[0] }}" aria-label="Copy IP of {{ key }}">Copy IP</button>
+                                {% if value[4] == 'Available' %}
+                                    <a href="{{ url_for('get_rdp_file', domain_name=key) }}" class="action-btn" aria-label="Download RDP file for {{ key }}">
+                                        Download RDP
+                                    </a>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td data-label="Idle Time" data-idle="normal">{{ value[5] if value[5] else '' }}</td>
+                        <td data-label="Logon Time">{{ value[6] if value[6] else '' }}</td>
+                        <td data-label="Last Update">{{ value[7].strftime('%I:%M %p') if value[7] else '' }}</td>
+                    </tr>
+                    {% endif %}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 
-  <h3>2 Metrotech Room 813</h3>
-  <hr class="mt-0">
+    <!-- Toast Container -->
+    <div id="toast" class="toast" role="alert" aria-live="polite"></div>
 
-  <table class="table table-sm table-bordered table-hover">
-    <thead>
-      <tr>
-        <th scope="col" class="text-center align-middle">Domain Name</th>
-        <th scope="col" class="text-center align-middle">IP Address</th>
-        <th scope="col" class="text-center align-middle">Username</th>
-        <th scope="col" class="text-center align-middle">Session</th>
-        <th scope="col" class="text-center align-middle">ID</th>
-        <th scope="col" class="text-center align-middle">State</th>
-        <th scope="col" class="text-center align-middle">RDP File</th>
-        <th scope="col" class="text-center align-middle">Idle Time</th>
-        <th scope="col" class="text-center align-middle">Logon Time</th>
-        <th scope="col" class="text-center align-middle">Last Update</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for key, value in status_dict.items() %}
-        {% if key[:4] == "CUSP" %}
-        <tr>
-          <td>{{ key }}</td>
-          <td>{{ value[0] if value[0] else '' }}</td>
-          <td>{{ value[1] if value[1] else '' }}</td>
-          <td>{{ value[2] if value[2] else '' }}</td>
-          <td>{{ value[3] if value[3] else '' }}</td>
-          {% if value[4] == 'Available' %}
-            <td><span class="text-success">{{ value[4] }}</span></td>
-          {% elif value[4] == 'System Down' %}
-            <td><span class="text-danger">{{ value[4] }}</span></td>
-          {% else %}
-            <td><span class="text-warning">{{ value[4] }}</span></td>
-          {% endif %}
-          <td>
-            {% if value[4] == 'Available' %}
-              <a href="{{ url_for('get_rdp_file', domain_name=key) }}">
-                download
-              </a>
-            {% endif %}
-          </td>
-          <td>{{ value[5] if value[5] else '' }}</td>
-          <td>{{ value[6] if value[6] else '' }}</td>
-          <td>{{ value[7].strftime('%m/%d/%Y %I:%M %p') }}</td>
-        </tr>
-        {% endif %}
-      {% endfor %}
-    </tbody>
-  </table>
+    <script>
+        // Load preferences from localStorage
+        const prefs = {
+            density: localStorage.getItem('tableDensity') || 'comfortable',
+            filter: localStorage.getItem('tableFilter') || 'all',
+            theme: localStorage.getItem('theme') || 'dark'
+        };
 
+        // Apply saved preferences
+        document.querySelector(`[data-density="${prefs.density}"]`).dataset.active = "true";
+        document.querySelector(`[data-filter="${prefs.filter}"]`).dataset.active = "true";
+        document.querySelector('table').dataset.density = prefs.density;
+        if (prefs.theme === 'light') {
+            document.documentElement.dataset.theme = 'light';
+        }
 
+        // Density Toggle
+        document.querySelectorAll('.density-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.density-btn').forEach(b => b.dataset.active = "false");
+                btn.dataset.active = "true";
+                const density = btn.dataset.density;
+                document.querySelector('table').dataset.density = density;
+                localStorage.setItem('tableDensity', density);
+            });
+        });
+
+        // Column Sorting
+        document.querySelectorAll('th.sortable').forEach(th => {
+            th.addEventListener('click', () => {
+                const table = th.closest('table');
+                const tbody = table.querySelector('tbody');
+                const rows = Array.from(tbody.querySelectorAll('tr'));
+                const index = Array.from(th.parentNode.children).indexOf(th);
+                const sortOrder = th.dataset.sort === 'asc' ? 'desc' : 'asc';
+
+                // Reset other columns
+                table.querySelectorAll('th.sortable').forEach(header => {
+                    if (header !== th) header.dataset.sort = 'none';
+                });
+
+                th.dataset.sort = sortOrder;
+
+                rows.sort((a, b) => {
+                    const aVal = a.children[index].textContent.trim();
+                    const bVal = b.children[index].textContent.trim();
+                    return sortOrder === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+                });
+
+                tbody.append(...rows);
+            });
+        });
+
+        // Keyboard Navigation
+        document.addEventListener('keydown', e => {
+            const focused = document.activeElement;
+            if (focused.tagName === 'TR') {
+                const rows = Array.from(focused.parentNode.children);
+                const index = rows.indexOf(focused);
+                
+                if (e.key === 'ArrowUp' && index > 0) {
+                    e.preventDefault();
+                    rows[index - 1].focus();
+                }
+                else if (e.key === 'ArrowDown' && index < rows.length - 1) {
+                    e.preventDefault();
+                    rows[index + 1].focus();
+                }
+                else if (e.key === 'c') {
+                    e.preventDefault();
+                    focused.querySelector('.copy-ip')?.click();
+                }
+                else if (e.key === 'r') {
+                    e.preventDefault();
+                    focused.querySelector('a[href*="get-rdp-file"]')?.click();
+                }
+            }
+        });
+
+        // Toast Notifications
+        function showToast(message, duration = 2000) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), duration);
+        }
+
+        // Copy IP with Toast
+        document.querySelectorAll('.copy-ip').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const ip = btn.dataset.ip;
+                navigator.clipboard.writeText(ip).then(() => {
+                    showToast(`Copied IP: ${ip}`);
+                });
+            });
+        });
+
+        // Idle Time Coloring
+        document.querySelectorAll('td[data-idle]').forEach(td => {
+            const text = td.textContent.trim();
+            if (text) {
+                const minutes = parseInt(text.match(/\d+/)[0]);
+                if (minutes > 180) td.dataset.idle = 'alert';
+                else if (minutes > 60) td.dataset.idle = 'warning';
+            }
+        });
+    </script>
 {% endblock %}
