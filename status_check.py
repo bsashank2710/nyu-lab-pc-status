@@ -1,5 +1,5 @@
 import subprocess
-from app import db, pc_names
+from app import db, pc_names, app
 from app.models import Status
 import time
 import platform
@@ -21,41 +21,42 @@ def ping_host(host):
 
 def status_check():
     print(f"\nStarting status check at {datetime.now()}")
-    for name in pc_names.keys():
-        print(f"\nChecking {name}...")
-        ip = pc_names[name]
-        print(f"Pinging {name} ({ip})...")
-        
-        # Try to ping both hostname and IP
-        host_up = ping_host(name)
-        ip_up = ping_host(ip)
-        print(f"Host ping: {'Success' if host_up else 'Failed'}")
-        print(f"IP ping: {'Success' if ip_up else 'Failed'}")
+    with app.app_context():
+        for name in pc_names.keys():
+            print(f"\nChecking {name}...")
+            ip = pc_names[name]
+            print(f"Pinging {name} ({ip})...")
+            
+            # Try to ping both hostname and IP
+            host_up = ping_host(name)
+            ip_up = ping_host(ip)
+            print(f"Host ping: {'Success' if host_up else 'Failed'}")
+            print(f"IP ping: {'Success' if ip_up else 'Failed'}")
 
-        if not (host_up or ip_up):
-            print(f"{name} is down")
-            stat = Status(
-                domain_name=name,
-                ip_address=ip,
-                state="System Down",
-                last_update=datetime.now())
-        else:
-            print(f"{name} is up")
-            # Since we can't query Windows sessions from Linux,
-            # we'll just mark it as Available if it responds to ping
-            stat = Status(
-                domain_name=name,
-                ip_address=ip,
-                state="Available",
-                last_update=datetime.now())
+            if not (host_up or ip_up):
+                print(f"{name} is down")
+                stat = Status(
+                    domain_name=name,
+                    ip_address=ip,
+                    state="System Down",
+                    last_update=datetime.now())
+            else:
+                print(f"{name} is up")
+                # Since we can't query Windows sessions from Linux,
+                # we'll just mark it as Available if it responds to ping
+                stat = Status(
+                    domain_name=name,
+                    ip_address=ip,
+                    state="Available",
+                    last_update=datetime.now())
 
-        try:
-            db.session.add(stat)
-            db.session.commit()
-            print(f"Updated status for {name} in database")
-        except Exception as e:
-            print(f"Error updating database for {name}: {e}")
-            db.session.rollback()
+            try:
+                db.session.add(stat)
+                db.session.commit()
+                print(f"Updated status for {name} in database")
+            except Exception as e:
+                print(f"Error updating database for {name}: {e}")
+                db.session.rollback()
 
 if __name__ == '__main__':
     i = 1
