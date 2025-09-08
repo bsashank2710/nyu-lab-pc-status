@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
+    <meta http-equiv="refresh" content="30">
     <!-- Stats -->
     <div class="stats">
         <div class="stat-card">
@@ -109,17 +110,19 @@
 
     <!-- Status Legend -->
     <div class="status-legend">
-        <div class="legend-item" data-tooltip="Machine is free to use">
-            <div class="legend-dot available"></div>
-            Available
-        </div>
-        <div class="legend-item" data-tooltip="Machine is currently in use">
-            <div class="legend-dot inuse"></div>
-            In Use
-        </div>
-        <div class="legend-item" data-tooltip="Machine is not responding">
-            <div class="legend-dot down"></div>
-            Down
+        <div class="legend-group">
+            <div class="legend-item" data-tooltip="Machine is free to use">
+                <div class="legend-dot available"></div>
+                Available
+            </div>
+            <div class="legend-item" data-tooltip="Machine is currently in use">
+                <div class="legend-dot inuse"></div>
+                In Use
+            </div>
+            <div class="legend-item" data-tooltip="Machine is not responding">
+                <div class="legend-dot down"></div>
+                Down
+            </div>
         </div>
         <div class="density-toggle">
             <button class="density-btn" data-density="comfortable" data-active="true">Comfortable</button>
@@ -183,7 +186,7 @@
                         </td>
                         <td data-label="Idle Time" data-idle="normal">{{ value[5] if value[5] else '' }}</td>
                         <td data-label="Logon Time">{{ value[6] if value[6] else '' }}</td>
-                        <td data-label="Last Update">{{ value[7].strftime('%I:%M %p') if value[7] else '' }}</td>
+                        <td data-label="Last Update">{{ value[7].strftime('%I:%M:%S %p') if value[7] else '' }}</td>
                     </tr>
                     {% endif %}
                 {% endfor %}
