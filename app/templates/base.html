@@ -8,7 +8,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <meta http-equiv="refresh" content="30">
 </head>
 <body>
     <header class="header">
@@ -16,7 +15,7 @@
             <div class="header-content">
                 <h1 class="title">NYU ECE/CSE Labs</h1>
                 <div class="last-update" style="color: var(--sub)">
-                    Last updated: <span id="update-time"></span>
+                    Last updated: <span id="update-time">{{ last_update }}</span>
                 </div>
             </div>
         </div>
@@ -27,13 +26,21 @@
     </main>
 
     <script>
-        // Update timestamp
-        function updateTime() {
-            const now = new Date();
-            document.getElementById('update-time').textContent = now.toLocaleTimeString();
+        // Function to fetch and update the last update time
+        async function updateLastUpdateTime() {
+            try {
+                const response = await fetch('/get_last_update');
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('update-time').textContent = data.last_update;
+                }
+            } catch (error) {
+                console.error('Error fetching last update time:', error);
+            }
         }
-        updateTime();
-        setInterval(updateTime, 1000);
+
+        // Update time every 15 seconds
+        setInterval(updateLastUpdateTime, 15000);
 
         // Search and filter functionality
         const searchInput = document.getElementById('search');
