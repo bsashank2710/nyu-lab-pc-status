@@ -186,7 +186,7 @@
                         </td>
                         <td data-label="Idle Time" data-idle="normal">{{ value[5] if value[5] else '' }}</td>
                         <td data-label="Logon Time">{{ value[6] if value[6] else '' }}</td>
-                        <td data-label="Last Update">{{ value[7].strftime('%I:%M:%S %p') if value[7] else '' }}</td>
+                        <td data-label="Last Update" data-pc="{{ key }}">{{ value[7].strftime('%I:%M:%S %p') if value[7] else 'Never' }}</td>
                     </tr>
                     {% endif %}
                 {% endfor %}
@@ -303,5 +303,30 @@
                 else if (minutes > 60) td.dataset.idle = 'warning';
             }
         });
+
+        // Function to update all timestamps
+        async function updateAllTimes() {
+            try {
+                const response = await fetch('/get_last_update');
+                if (response.ok) {
+                    const data = await response.json();
+                    // Update global last update time
+                    document.getElementById('update-time').textContent = data.last_update;
+                    
+                    // Update individual PC times
+                    for (const [pc, status] of Object.entries(data.pc_status)) {
+                        const timeCell = document.querySelector(`td[data-pc="${pc}"]`);
+                        if (timeCell) {
+                            timeCell.textContent = status.last_update;
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching updates:', error);
+            }
+        }
+
+        // Update times every 15 seconds
+        setInterval(updateAllTimes, 15000);
     </script>
 {% endblock %}

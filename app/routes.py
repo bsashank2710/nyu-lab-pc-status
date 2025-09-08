@@ -5,16 +5,29 @@ from datetime import datetime
 
 @app.route('/get_last_update')
 def get_last_update():
+    status_dict = {}
     last_update = None
     try:
-        # Get the most recent update time from any status
-        latest_status = Status.query.order_by(Status.last_update.desc()).first()
-        if latest_status and latest_status.last_update:
-            last_update = latest_status.last_update.strftime('%I:%M:%S %p')
+        for name in pc_names.keys():
+            stat = (
+                Status.query
+                .filter_by(domain_name=name)
+                .order_by(Status.last_update.desc())
+                .first())
+            if stat:
+                status_dict[name] = {
+                    'state': stat.state,
+                    'last_update': stat.last_update.strftime('%I:%M:%S %p') if stat.last_update else 'Never'
+                }
+                if not last_update or (stat.last_update and stat.last_update > last_update):
+                    last_update = stat.last_update
     except Exception as e:
-        print(f"Error getting last update time: {e}")
+        print(f"Error getting status updates: {e}")
     
-    return jsonify({'last_update': last_update or 'Never'})
+    return jsonify({
+        'last_update': last_update.strftime('%I:%M:%S %p') if last_update else 'Never',
+        'pc_status': status_dict
+    })
 
 @app.route('/')
 @app.route('/index')
@@ -40,7 +53,6 @@ def index():
                     w_count += 1
                 elif stat.state == 'System Down':
                     d_count += 1
-                # Update last_update time if this is more recent
                 if not last_update or (stat.last_update and stat.last_update > last_update):
                     last_update = stat.last_update
         except Exception as e:
