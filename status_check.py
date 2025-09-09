@@ -1,10 +1,9 @@
 import subprocess
-import re
+import socket
 from app import db, pc_names, app
 from app.models import Status
 import time
 from datetime import datetime
-import socket
 
 def ping_host(host):
     """Ping a host and return True if it responds, False otherwise."""
@@ -18,8 +17,8 @@ def ping_host(host):
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
         return False
 
-def get_session_info(ip):
-    """Get session information using netstat and who."""
+def check_rdp_connection(ip):
+    """Check if RDP port is in use."""
     try:
         # Check for RDP connection
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -41,37 +40,13 @@ def get_session_info(ip):
                 if ip in line and ':3389' in line and 'ESTABLISHED' in line:
                     # Extract the client IP
                     client_ip = line.split()[4].split(':')[0]
-                    return {
-                        'username': 'Remote User',
-                        'session_name': f'RDP from {client_ip}',
-                        'session_id': '1',
-                        'idle_time': '0',
-                        'logon_time': datetime.now().strftime('%I:%M:%S %p')
-                    }
+                    return True, client_ip
             
-            # If port is open but no established connection
-            return {
-                'username': 'Available',
-                'session_name': 'No Active Session',
-                'session_id': '',
-                'idle_time': '',
-                'logon_time': ''
-            }
+            return False, None
     except:
         pass
     
-    return {
-        'username': '',
-        'session_name': '',
-        'session_id': '',
-        'idle_time': '',
-        'logon_time': ''
-    }
-
-def check_user_sessions(ip):
-    """Check if there are any active user sessions."""
-    session_info = get_session_info(ip)
-    return bool(session_info['username'])
+    return False, None
 
 def status_check():
     print(f"\nStarting status check at {datetime.now()}")
@@ -100,21 +75,20 @@ def status_check():
                     logon_time='',
                     last_update=datetime.now())
             else:
-                # Get session information
-                session_info = get_session_info(ip)
-                in_use = bool(session_info['username'])
+                # Check if the system is in use
+                in_use, client_ip = check_rdp_connection(ip)
                 
                 if in_use:
-                    print(f"{name} is in use by {session_info['username']}")
+                    print(f"{name} is in use (connected from {client_ip})")
                     stat = Status(
                         domain_name=name,
                         ip_address=ip,
                         state="In Use",
-                        username=session_info['username'],
-                        session_name=session_info['session_name'],
-                        session_id=session_info['session_id'],
-                        idle_time=session_info['idle_time'],
-                        logon_time=session_info['logon_time'],
+                        username='Remote User',
+                        session_name=f'RDP from {client_ip}',
+                        session_id='1',
+                        idle_time='0',
+                        logon_time=datetime.now().strftime('%I:%M:%S %p'),
                         last_update=datetime.now())
                 else:
                     print(f"{name} is available")
