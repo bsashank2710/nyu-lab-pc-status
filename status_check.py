@@ -4,6 +4,7 @@ from app import db, pc_names, app
 from app.models import Status
 import time
 from datetime import datetime
+import socket
 
 def ping_host(host):
     """Ping a host and return True if it responds, False otherwise."""
@@ -17,70 +18,48 @@ def ping_host(host):
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
         return False
 
-def parse_qwinsta_output(output):
-    """Parse qwinsta output to get session info."""
-    lines = output.split('\n')
-    if len(lines) < 2:  # No sessions or header only
-        return None, None, None, None
-    
-    for line in lines[1:]:  # Skip header
-        parts = line.split()
-        if len(parts) >= 4 and 'Active' in line:
-            # Try to extract username, session name, and ID
-            username = parts[0]
-            session_name = parts[1] if len(parts) > 1 else ''
-            session_id = parts[2] if len(parts) > 2 else ''
-            idle_time = parts[3] if len(parts) > 3 else ''
-            return username, session_name, session_id, idle_time
-    return None, None, None, None
-
 def get_session_info(ip):
-    """Get detailed session information."""
+    """Get session information using netstat and who."""
     try:
-        # Try to query user sessions using qwinsta
-        result = subprocess.run(
-            ['qwinsta', '/server:' + ip],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            timeout=2)
-        output = result.stdout.decode()
+        # Check for RDP connection
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(1)
+        result = sock.connect_ex((ip, 3389))
+        sock.close()
         
-        if result.returncode == 0:
-            username, session_name, session_id, idle_time = parse_qwinsta_output(output)
-            if username:
-                return {
-                    'username': username,
-                    'session_name': session_name,
-                    'session_id': session_id,
-                    'idle_time': idle_time,
-                    'logon_time': datetime.now().strftime('%I:%M:%S %p')  # Current time as logon time
-                }
+        if result == 0:  # Port is open
+            # Get netstat info for this IP
+            netstat_result = subprocess.run(
+                ['netstat', '-n'],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=2)
+            netstat_output = netstat_result.stdout.decode()
+            
+            # Look for established RDP connections
+            for line in netstat_output.split('\n'):
+                if ip in line and ':3389' in line and 'ESTABLISHED' in line:
+                    # Extract the client IP
+                    client_ip = line.split()[4].split(':')[0]
+                    return {
+                        'username': 'Remote User',
+                        'session_name': f'RDP from {client_ip}',
+                        'session_id': '1',
+                        'idle_time': '0',
+                        'logon_time': datetime.now().strftime('%I:%M:%S %p')
+                    }
+            
+            # If port is open but no established connection
+            return {
+                'username': 'Available',
+                'session_name': 'No Active Session',
+                'session_id': '',
+                'idle_time': '',
+                'logon_time': ''
+            }
     except:
         pass
-
-    try:
-        # Try net session as fallback
-        result = subprocess.run(
-            ['net', 'session', '\\\\' + ip],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            timeout=2)
-        output = result.stdout.decode()
-        
-        if result.returncode == 0 and len(output.strip()) > 0:
-            # Try to extract username from net session output
-            match = re.search(r'Computer\s+(\S+)', output)
-            if match:
-                return {
-                    'username': match.group(1),
-                    'session_name': 'RDP',
-                    'session_id': '1',
-                    'idle_time': '0',
-                    'logon_time': datetime.now().strftime('%I:%M:%S %p')
-                }
-    except:
-        pass
-
+    
     return {
         'username': '',
         'session_name': '',
