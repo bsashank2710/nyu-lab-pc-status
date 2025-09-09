@@ -170,8 +170,8 @@
                                 <span class="chip chip-available" data-state="available" data-tooltip="Machine is free to use">{{ value[4] }}</span>
                             {% elif value[4] == 'System Down' %}
                                 <span class="chip chip-down" data-state="down" data-tooltip="Machine is not responding">{{ value[4] }}</span>
-                            {% else %}
-                                <span class="chip chip-idle" data-state="inuse" data-tooltip="Machine is currently in use">{{ value[4] }}</span>
+                            {% elif value[4] == 'In Use' %}
+                                <span class="chip chip-idle" data-state="inuse" data-tooltip="Machine is currently in use">In Use</span>
                             {% endif %}
                         </td>
                         <td data-label="Actions">
