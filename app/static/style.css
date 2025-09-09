@@ -194,11 +194,11 @@ tr:hover {
 }
 
 .chip-available {
-    background: rgba(74, 222, 128, 0.1);
-    color: var(--green);
-    border: 1px solid rgba(74, 222, 128, 0.2);
+    background: rgba(251, 191, 36, 0.1);
+    color: var(--amber);
+    border: 1px solid rgba(251, 191, 36, 0.2);
 }
-.chip-available::before { background: var(--green); }
+.chip-available::before { background: var(--amber); }
 
 .chip-down {
     background: rgba(248, 113, 113, 0.1);
@@ -208,11 +208,11 @@ tr:hover {
 .chip-down::before { background: var(--red); }
 
 .chip-idle {
-    background: rgba(56, 189, 248, 0.1);
-    color: var(--sky);
-    border: 1px solid rgba(56, 189, 248, 0.2);
+    background: rgba(74, 222, 128, 0.1);
+    color: var(--green);
+    border: 1px solid rgba(74, 222, 128, 0.2);
 }
-.chip-idle::before { background: var(--sky); }
+.chip-idle::before { background: var(--green); }
 
 /* Actions */
 .actions {
@@ -387,8 +387,8 @@ table[data-density="comfortable"] td {
     border-radius: 9999px;
 }
 
-.legend-dot.available { background: var(--green); }
-.legend-dot.inuse { background: var(--amber); }
+.legend-dot.available { background: var(--amber); }
+.legend-dot.inuse { background: var(--green); }
 .legend-dot.down { background: var(--red); }
 
 /* Toast */
