@@ -38,35 +38,45 @@ def index():
     down_count = 0
     last_update = None
     
-    for name in pc_names.keys():
-        try:
+    try:
+        # First, get the latest status for each PC
+        for name in pc_names.keys():
             stat = (
                 Status.query
                 .filter_by(domain_name=name)
                 .order_by(Status.last_update.desc())
                 .first())
+            
             if stat:
+                print(f"PC {name}: state = {stat.state}")  # Debug output
+                # Store the status info
                 status_dict[name] = [
                     stat.ip_address, stat.username, stat.session_name,
                     stat.session_id, stat.state, stat.idle_time,
                     stat.logon_time, stat.last_update]
+                
+                # Update counts based on state
                 if stat.state == 'Available':
                     available_count += 1
                 elif stat.state == 'In Use':
                     in_use_count += 1
                 elif stat.state == 'System Down':
                     down_count += 1
+                
+                # Track most recent update
                 if not last_update or (stat.last_update and stat.last_update > last_update):
                     last_update = stat.last_update
-        except Exception as e:
-            print(f"Error getting status for {name}: {e}")
-            continue
+    except Exception as e:
+        print(f"Error getting status: {e}")
+    
+    # Debug output
+    print(f"Final Counts - Available: {available_count}, In Use: {in_use_count}, Down: {down_count}")
     
     return render_template('index.html', 
                          title='Home', 
                          status_dict=status_dict,
                          w_count=available_count,
-                         i_count=in_use_count,
+                         in_use_count=in_use_count,
                          d_count=down_count,
                          last_update=last_update.strftime('%I:%M:%S %p') if last_update else 'Never')
 
