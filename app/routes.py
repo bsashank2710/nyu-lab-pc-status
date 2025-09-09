@@ -33,8 +33,9 @@ def get_last_update():
 @app.route('/index')
 def index():
     status_dict = {}
-    w_count = 0
-    d_count = 0
+    available_count = 0
+    in_use_count = 0
+    down_count = 0
     last_update = None
     
     for name in pc_names.keys():
@@ -50,9 +51,11 @@ def index():
                     stat.session_id, stat.state, stat.idle_time,
                     stat.logon_time, stat.last_update]
                 if stat.state == 'Available':
-                    w_count += 1
+                    available_count += 1
+                elif stat.state == 'In Use':
+                    in_use_count += 1
                 elif stat.state == 'System Down':
-                    d_count += 1
+                    down_count += 1
                 if not last_update or (stat.last_update and stat.last_update > last_update):
                     last_update = stat.last_update
         except Exception as e:
@@ -62,8 +65,9 @@ def index():
     return render_template('index.html', 
                          title='Home', 
                          status_dict=status_dict,
-                         w_count=w_count,
-                         d_count=d_count,
+                         w_count=available_count,
+                         i_count=in_use_count,
+                         d_count=down_count,
                          last_update=last_update.strftime('%I:%M:%S %p') if last_update else 'Never')
 
 

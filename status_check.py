@@ -1,50 +1,13 @@
 import subprocess
+import socket
 from app import db, pc_names, app
 from app.models import Status
 import time
-import platform
 from datetime import datetime
-import socket
-import struct
-
-def check_rdp_session(host):
-    """Check if there are active RDP sessions on the host."""
-    try:
-        # Create a socket
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(1)  # 1 second timeout
-        
-        # Try to connect to RDP port (3389)
-        result = sock.connect_ex((host, 3389))
-        sock.close()
-        
-        if result == 0:
-            # Port is open, try to establish a connection
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.settimeout(1)
-            sock.connect((host, 3389))
-            
-            # Send RDP negotiation request
-            # MS-RDPBCGR protocol - RDP Negotiation Request
-            packet = struct.pack('>BBHBH', 3, 0, 19, 0, 3389)
-            sock.send(packet)
-            
-            # Receive response
-            response = sock.recv(1024)
-            sock.close()
-            
-            # If we get a response and it's longer than 0 bytes
-            # it likely means someone is using the system
-            return len(response) > 0
-    except:
-        pass
-    return False
 
 def ping_host(host):
     """Ping a host and return True if it responds, False otherwise."""
-    # Use -c for Linux/Mac, -n for Windows
     try:
-        # Use shell=True for Windows-style hostnames
         result = subprocess.run(
             ['ping', '-c', '1', '-W', '1', host],
             stdout=subprocess.PIPE,
@@ -52,6 +15,20 @@ def ping_host(host):
             timeout=2)
         return result.returncode == 0
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
+        return False
+
+def check_rdp_port(ip):
+    """Check if RDP port is in use (indicating an active session)"""
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.settimeout(1)
+    try:
+        # Try to connect to RDP port
+        result = sock.connect_ex((ip, 3389))
+        sock.close()
+        # If port is open but connection refused, someone is using it
+        return result != 0
+    except:
+        sock.close()
         return False
 
 def status_check():
@@ -76,15 +53,22 @@ def status_check():
                     state="System Down",
                     last_update=datetime.now())
             else:
-                # Check for RDP sessions
-                in_use = check_rdp_session(ip)
-                state = "In Use" if in_use else "Available"
-                print(f"{name} is {state.lower()}")
-                stat = Status(
-                    domain_name=name,
-                    ip_address=ip,
-                    state=state,
-                    last_update=datetime.now())
+                # Check if the system is in use
+                in_use = check_rdp_port(ip)
+                if in_use:
+                    print(f"{name} is in use")
+                    stat = Status(
+                        domain_name=name,
+                        ip_address=ip,
+                        state="In Use",
+                        last_update=datetime.now())
+                else:
+                    print(f"{name} is available")
+                    stat = Status(
+                        domain_name=name,
+                        ip_address=ip,
+                        state="Available",
+                        last_update=datetime.now())
 
             try:
                 db.session.add(stat)
