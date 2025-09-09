@@ -4,6 +4,41 @@ from app.models import Status
 import time
 import platform
 from datetime import datetime
+import socket
+import struct
+
+def check_rdp_session(host):
+    """Check if there are active RDP sessions on the host."""
+    try:
+        # Create a socket
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(1)  # 1 second timeout
+        
+        # Try to connect to RDP port (3389)
+        result = sock.connect_ex((host, 3389))
+        sock.close()
+        
+        if result == 0:
+            # Port is open, try to establish a connection
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(1)
+            sock.connect((host, 3389))
+            
+            # Send RDP negotiation request
+            # MS-RDPBCGR protocol - RDP Negotiation Request
+            packet = struct.pack('>BBHBH', 3, 0, 19, 0, 3389)
+            sock.send(packet)
+            
+            # Receive response
+            response = sock.recv(1024)
+            sock.close()
+            
+            # If we get a response and it's longer than 0 bytes
+            # it likely means someone is using the system
+            return len(response) > 0
+    except:
+        pass
+    return False
 
 def ping_host(host):
     """Ping a host and return True if it responds, False otherwise."""
@@ -41,13 +76,14 @@ def status_check():
                     state="System Down",
                     last_update=datetime.now())
             else:
-                print(f"{name} is up")
-                # Since we can't query Windows sessions from Linux,
-                # we'll just mark it as Available if it responds to ping
+                # Check for RDP sessions
+                in_use = check_rdp_session(ip)
+                state = "In Use" if in_use else "Available"
+                print(f"{name} is {state.lower()}")
                 stat = Status(
                     domain_name=name,
                     ip_address=ip,
-                    state="Available",
+                    state=state,
                     last_update=datetime.now())
 
             try:
