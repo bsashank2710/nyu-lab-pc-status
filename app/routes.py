@@ -73,15 +73,16 @@ def index():
     print(f"Final Counts - Available: {available_count}, In Use: {in_use_count}, Down: {down_count}")
     
     return render_template('index.html', 
-                         title='Home', 
-                         status_dict=status_dict,
-                         w_count=available_count,
-                         in_use_count=in_use_count,
-                         d_count=down_count,
-                         last_update=last_update.strftime('%I:%M:%S %p') if last_update else 'Never')
+                        title='Home', 
+                        status_dict=status_dict,
+                        w_count=available_count,
+                        in_use_count=in_use_count,
+                        d_count=down_count,
+                        last_update=last_update.strftime('%I:%M:%S %p') if last_update else 'Never')
 
-
-rdp_file_contents = """gatewaybrokeringtype:i:0
+@app.route("/get-rdp-file/<domain_name>")
+def get_rdp_file(domain_name):
+    rdp_file_contents = """gatewaybrokeringtype:i:0
 use redirection server name:i:0
 disable themes:i:0
 disable cursor setting:i:0
@@ -124,9 +125,6 @@ disable wallpaper:i:0
 full address:s:{}
 gatewayaccesstoken:s:
 """
-
-@app.route("/get-rdp-file/<domain_name>")
-def get_rdp_file(domain_name):
     contents = rdp_file_contents.format(pc_names[domain_name])
 
     return Response(
