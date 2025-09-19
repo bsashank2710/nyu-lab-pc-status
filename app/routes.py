@@ -2,6 +2,7 @@ from app import app, db, pc_names
 from flask import render_template, Response, jsonify
 from app.models import Status
 from datetime import datetime
+from sqlalchemy import desc
 
 @app.route('/get_last_update')
 def get_last_update():
@@ -39,26 +40,21 @@ def index():
     last_update = None
     
     try:
-        # First, get the latest status for all PCs
-        latest_stats = (
-            Status.query
-            .from_self()
-            .filter(
-                Status.domain_name.in_(pc_names.keys())
+        # Get all PCs' latest status
+        latest_stats = {}
+        for name in pc_names.keys():
+            stat = (
+                Status.query
+                .filter_by(domain_name=name)
+                .order_by(desc(Status.last_update))
+                .first()
             )
-            .order_by(Status.last_update.desc())
-            .all()
-        )
-
-        # Create a dict of most recent status per PC
-        pc_latest_status = {}
-        for stat in latest_stats:
-            if stat.domain_name not in pc_latest_status:
-                pc_latest_status[stat.domain_name] = stat
+            if stat:
+                latest_stats[name] = stat
 
         # Process each PC's status
         for name in pc_names.keys():
-            stat = pc_latest_status.get(name)
+            stat = latest_stats.get(name)
             if stat:
                 status_dict[name] = [
                     stat.ip_address,
