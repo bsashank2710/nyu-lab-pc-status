@@ -34,17 +34,50 @@ def check_rdp_connection(ip):
         - client_info: Additional information about the connection
     """
     try:
-        # Try to connect to RDP port
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(1)  # Short timeout for quick checks
-        result = sock.connect_ex((ip, 3389))
-        sock.close()
+        # First try netstat to check for established RDP connections
+        system = platform.system().lower()
+        if system == "windows":
+            netstat_cmd = ['netstat', '-n']
+        elif system == "darwin":  # macOS
+            netstat_cmd = ['netstat', '-n', '-p', 'tcp']
+        else:  # Linux
+            netstat_cmd = ['netstat', '-tn']
         
-        # If we can't connect to the port, the PC is likely in use
-        if result != 0:
-            print(f"RDP port check: Port closed/in use (result={result})")
-            return True, "RDP session active"
+        try:
+            netstat_result = subprocess.run(
+                netstat_cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=2)
+            netstat_output = netstat_result.stdout.decode()
+            
+            # Look for established RDP connections
+            for line in netstat_output.split('\n'):
+                if ip in line and ':3389' in line and ('ESTABLISHED' in line or 'EST' in line):
+                    print(f"Found established RDP connection for {ip}")
+                    return True, "Active RDP connection"
+        except Exception as e:
+            print(f"Netstat error: {e}")
+
+        # Then try to connect to RDP port
+        for _ in range(3):  # Try multiple times
+            try:
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                sock.settimeout(0.5)  # Very short timeout
+                result = sock.connect_ex((ip, 3389))
+                sock.close()
+                
+                if result != 0:
+                    print(f"RDP port check: Port closed/in use (result={result})")
+                    return True, "RDP port in use"
+                
+                # Small delay between attempts
+                time.sleep(0.1)
+            except Exception as e:
+                print(f"Socket attempt error: {e}")
+                continue
         
+        # If we get here, port was consistently open
         print("RDP port check: Port open/available")
         return False, None
             
