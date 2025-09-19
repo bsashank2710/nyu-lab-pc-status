@@ -28,55 +28,59 @@ def ping_host(host):
         return False
 
 def check_rdp_connection(ip):
-    """Check if RDP port is in use."""
+    """Check if RDP port is in use.
+    Returns (is_in_use, client_info):
+        - is_in_use: True if someone is using the PC (can't connect to RDP)
+        - client_info: Additional information about the connection
+    """
     try:
-        # First check if port is open
+        # Try to connect to RDP port
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.settimeout(2)  # Increased timeout
         result = sock.connect_ex((ip, 3389))
         sock.close()
         
-        if result == 0:  # Port is open
-            try:
-                # Try to get netstat info if available
-                system = platform.system().lower()
-                if system == "windows":
-                    netstat_cmd = ['netstat', '-n']
-                elif system == "darwin":  # macOS
-                    netstat_cmd = ['netstat', '-n', '-p', 'tcp']
-                else:  # Linux
-                    netstat_cmd = ['netstat', '-tn']
-                
-                netstat_result = subprocess.run(
-                    netstat_cmd,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    timeout=3)
-                netstat_output = netstat_result.stdout.decode()
-                
-                # Look for established RDP connections
-                for line in netstat_output.split('\n'):
-                    if ip in line and ':3389' in line and ('ESTABLISHED' in line or 'EST' in line):  # macOS shows 'EST'
-                        # Extract the client IP
-                        parts = line.split()
-                        for part in parts:
-                            if ip in part:
-                                return True, "Active Connection"
-                
-                # If port is open but no established connection found,
-                # the system is likely available
-                return False, None
-                
-            except Exception as e:
-                print(f"Netstat error: {e}")
-                # If we can't check netstat, assume system is available
-                # since we could connect to RDP port
-                return False, None
+        # If we can't connect to the port, it's likely in use
+        if result != 0:
+            return True, "RDP session active"
+            
+        # If we can connect, check netstat to confirm no active connections
+        try:
+            system = platform.system().lower()
+            if system == "windows":
+                netstat_cmd = ['netstat', '-n']
+            elif system == "darwin":  # macOS
+                netstat_cmd = ['netstat', '-n', '-p', 'tcp']
+            else:  # Linux
+                netstat_cmd = ['netstat', '-tn']
+            
+            netstat_result = subprocess.run(
+                netstat_cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=3)
+            netstat_output = netstat_result.stdout.decode()
+            
+            # Look for established RDP connections
+            for line in netstat_output.split('\n'):
+                if ip in line and ':3389' in line and ('ESTABLISHED' in line or 'EST' in line):
+                    return True, "Active RDP connection"
+            
+            # If we can connect and no established connections found,
+            # the system is available
+            return False, None
+            
+        except Exception as e:
+            print(f"Netstat error: {e}")
+            # If netstat check fails but we could connect to RDP port,
+            # assume system is available
+            return False, None
+            
     except Exception as e:
         print(f"Socket error: {e}")
-        # If we can't connect to RDP port, system might be in use
-        # or there might be network issues
-        pass
+        # If we can't even create/use the socket, something is wrong
+        # Assume system is down rather than in use
+        return False, None
     
     return False, None
 
