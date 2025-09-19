@@ -1,11 +1,101 @@
+from flask import render_template, jsonify, request, Response
 from app import app, db, pc_names
-from flask import render_template, Response, jsonify
 from app.models import Status
-from datetime import datetime
+from datetime import datetime, timedelta
 from sqlalchemy import desc
+
+@app.route('/')
+@app.route('/index')
+def index():
+    """Main page showing PC status."""
+    counts = Status.get_status_counts()
+    status_dict = {}
+    
+    for name in pc_names.keys():
+        try:
+            stat = (
+                Status.query
+                .filter_by(domain_name=name)
+                .order_by(Status.last_update.desc())
+                .first()
+            )
+            if stat:
+                status_dict[name] = [
+                    stat.ip_address,
+                    stat.username,
+                    stat.session_name,
+                    stat.session_id,
+                    stat.state,
+                    stat.idle_time,
+                    stat.logon_time,
+                    stat.last_update
+                ]
+        except Exception as e:
+            print(f"Error getting status for {name}: {e}")
+            continue
+
+    return render_template('index.html',
+                         title='Home',
+                         status_dict=status_dict,
+                         w_count=counts['available'],
+                         in_use_count=counts['in_use'],
+                         d_count=counts['down'],
+                         last_update=datetime.now().strftime('%I:%M:%S %p'))
+
+@app.route('/api/heartbeat', methods=['POST'])
+def heartbeat():
+    """Endpoint for PCs to send their heartbeat."""
+    data = request.get_json()
+    
+    if not data or 'hostname' not in data:
+        return jsonify({'error': 'Missing hostname'}), 400
+        
+    hostname = data['hostname']
+    username = data.get('user', '')
+    
+    # Update or create status record
+    status = Status.query.filter_by(domain_name=hostname).first()
+    if not status:
+        status = Status(domain_name=hostname)
+        
+    status.username = username
+    status.last_heartbeat = datetime.utcnow()
+    status.state = "In Use" if username else "Available"
+    
+    if 'ip' in data:
+        status.ip_address = data['ip']
+    
+    try:
+        db.session.add(status)
+        db.session.commit()
+        return jsonify({'status': 'ok'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/debug/inuse')
+def debug_inuse():
+    """Debug endpoint to show which PCs are counted as in use."""
+    recent_cut = datetime.utcnow() - timedelta(seconds=90)
+    machines = Status.query.filter(
+        Status.username != "",
+        Status.last_heartbeat >= recent_cut
+    ).all()
+    return jsonify({
+        'in_use': [
+            {
+                'hostname': m.domain_name,
+                'user': m.username,
+                'last_heartbeat': m.last_heartbeat.isoformat() if m.last_heartbeat else None
+            }
+            for m in machines
+        ],
+        'total_count': len(machines)
+    })
 
 @app.route('/get_last_update')
 def get_last_update():
+    """Get latest status updates for all PCs."""
     status_dict = {}
     last_update = None
     try:
@@ -30,82 +120,19 @@ def get_last_update():
         'pc_status': status_dict
     })
 
-@app.route('/')
-@app.route('/index')
-def index():
-    status_dict = {}
-    w_count = 0  # Available count
-    in_use_count = 0  # In Use count
-    d_count = 0  # Down count
-    last_update = None
-    
-    try:
-        # Get all PCs' latest status
-        latest_stats = {}
-        for name in pc_names.keys():
-            stat = (
-                Status.query
-                .filter_by(domain_name=name)
-                .order_by(desc(Status.last_update))
-                .first()
-            )
-            if stat:
-                latest_stats[name] = stat
+@app.route("/get-rdp-file/<domain_name>")
+def get_rdp_file(domain_name):
+    """Generate RDP file for a PC."""
+    if domain_name not in pc_names:
+        return "Invalid PC name", 400
+        
+    contents = rdp_file_contents.format(pc_names[domain_name])
+    return Response(
+        contents, mimetype="text/plain",
+        headers={
+            "Content-Disposition": f"attachment;filename={domain_name}.rdp"})
 
-        # Process each PC's status
-        for name in pc_names.keys():
-            stat = latest_stats.get(name)
-            if stat:
-                status_dict[name] = [
-                    stat.ip_address,
-                    stat.username,
-                    stat.session_name,
-                    stat.session_id,
-                    stat.state,
-                    stat.idle_time,
-                    stat.logon_time,
-                    stat.last_update
-                ]
-                
-                # Update counts
-                if stat.state == 'Available':
-                    w_count += 1
-                elif stat.state == 'In Use':
-                    in_use_count += 1
-                elif stat.state == 'System Down':
-                    d_count += 1
-                
-                # Track most recent update
-                if not last_update or (stat.last_update and stat.last_update > last_update):
-                    last_update = stat.last_update
-            else:
-                # If no status found, mark as down
-                status_dict[name] = [
-                    pc_names[name],  # IP address
-                    '', '', '', 'System Down', '', '', None
-                ]
-                d_count += 1
-
-    except Exception as e:
-        print(f"Error in index route: {e}")
-        # Return empty data on error
-        return render_template('index.html',
-                            title='Home',
-                            status_dict={},
-                            w_count=0,
-                            in_use_count=0,
-                            d_count=0,
-                            last_update='Never')
-
-    return render_template('index.html',
-                         title='Home',
-                         status_dict=status_dict,
-                         w_count=w_count,
-                         in_use_count=in_use_count,
-                         d_count=d_count,
-                         last_update=last_update.strftime('%I:%M:%S %p') if last_update else 'Never')
-
-
+# RDP file template
 rdp_file_contents = """gatewaybrokeringtype:i:0
 use redirection server name:i:0
 disable themes:i:0
@@ -149,15 +176,3 @@ disable wallpaper:i:0
 full address:s:{}
 gatewayaccesstoken:s:
 """
-
-@app.route("/get-rdp-file/<domain_name>")
-def get_rdp_file(domain_name):
-    if domain_name not in pc_names:
-        return "Invalid PC name", 400
-        
-    contents = rdp_file_contents.format(pc_names[domain_name])
-
-    return Response(
-        contents, mimetype="text/plain",
-        headers={
-            "Content-Disposition": f"attachment;filename={domain_name}.rdp"})
