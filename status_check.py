@@ -71,55 +71,52 @@ def status_check():
             print(f"Host ping: {'Success' if host_up else 'Failed'}")
             print(f"IP ping: {'Success' if ip_up else 'Failed'}")
 
-            if not (host_up or ip_up):
-                print(f"{name} is down")
-                state = "System Down"
-                extra_info = "Not responding to ping"
-                username = ""
-                last_heartbeat = None
-            else:
-                # Check if the system is in use
-                in_use, client_info, username, last_heartbeat = check_pc_in_use(name, ip)
-                
-                if in_use:
-                    print(f"{name} is in use ({client_info})")
-                    state = "In Use"
-                    extra_info = client_info
-                else:
-                    print(f"{name} is available")
-                    state = "Available"
-                    extra_info = ""
-                    username = ""
-                    last_heartbeat = None
-
-            # Update or create status record
+            # Get or create status record
             try:
                 status = Status.query.filter_by(domain_name=name).first()
                 if not status:
                     status = Status(domain_name=name)
+                    db.session.add(status)
                 
+                # Update basic info
                 status.ip_address = ip
-                status.state = state
-                status.session_name = extra_info
                 status.last_update = datetime.now()
-                
-                # Only update user-related fields if we're setting them
-                if username is not None:
-                    status.username = username
-                if last_heartbeat is not None:
-                    status.last_heartbeat = last_heartbeat
-                
-                # Update other fields only if marking as in use
-                if state == "In Use":
-                    status.session_id = '1'
-                    status.idle_time = '0'
-                    status.logon_time = datetime.now().strftime('%I:%M:%S %p')
-                elif state == "Available":
-                    status.session_id = ''
-                    status.idle_time = ''
-                    status.logon_time = ''
 
-                db.session.add(status)
+                if not (host_up or ip_up):
+                    print(f"{name} is down")
+                    status.state = "System Down"
+                    status.username = ""
+                    status.session_name = "Not responding to ping"
+                    status.last_heartbeat = None
+                else:
+                    # Check if the system is in use
+                    in_use, client_info, username, last_heartbeat = check_pc_in_use(name, ip)
+                    
+                    if in_use:
+                        print(f"{name} is in use ({client_info})")
+                        status.state = "In Use"
+                        status.session_name = client_info
+                        
+                        # Only update user info if we have new info
+                        if username is not None:
+                            status.username = username
+                        if last_heartbeat is not None:
+                            status.last_heartbeat = last_heartbeat
+                            
+                        # Set other fields for in-use state
+                        status.session_id = '1'
+                        status.idle_time = '0'
+                        status.logon_time = datetime.now().strftime('%I:%M:%S %p')
+                    else:
+                        print(f"{name} is available")
+                        status.state = "Available"
+                        status.username = ""
+                        status.session_name = ""
+                        status.session_id = ""
+                        status.idle_time = ""
+                        status.logon_time = ""
+                        status.last_heartbeat = None
+
                 db.session.commit()
                 print(f"Updated status for {name} in database")
             except Exception as e:
