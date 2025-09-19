@@ -11,7 +11,8 @@ Follow these steps to set up and run the application:
    
    - Activate the virtual environment:
      * On Windows: venv\Scripts\activate
-     * On Linux/Mac: source venv/bin/activate
+     * On Linux: source venv/bin/activate
+     * On macOS: source venv/bin/activate
    
    - Install dependencies:
      pip install -r requirements.txt
@@ -23,7 +24,7 @@ Follow these steps to set up and run the application:
      * Double-click Step2A.bat
      * Double-click Step2B.bat
    
-   - On Linux/Mac:
+   - On Linux/macOS:
      * Make the start script executable: chmod +x start.sh
      * Run: ./start.sh
 
@@ -35,18 +36,25 @@ Follow these steps to set up and run the application:
 4. Troubleshooting:
    - If port 5000 is in use:
      * On Windows: netstat -ano | findstr :5000
-     * On Linux/Mac: sudo lsof -i :5000
+     * On Linux: sudo lsof -i :5000
+     * On macOS: sudo lsof -i :5000
      Then kill the process using that port
    
    - If no data appears:
      * Make sure both the Flask server and status_check.py are running
      * Check if status_app.db exists (it's created automatically)
      * Wait 30 seconds for the first status check to complete
+   
+   - On macOS, if you get permission errors:
+     * Run: chmod +x start.sh
+     * If asked for network access, click "Allow"
+     * If asked for Python network access, also click "Allow"
 
 5. Important Notes:
    - The application creates a local database (status_app.db)
    - Each installation has its own database
    - Status updates happen every 30 seconds
    - Both the web server and status check script must be running
+   - On macOS, you might need to allow Python through the firewall
 
 For any issues, please check the terminal output for error messages. 

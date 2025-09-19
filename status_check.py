@@ -9,10 +9,12 @@ from datetime import datetime
 def ping_host(host):
     """Ping a host and return True if it responds, False otherwise."""
     try:
-        # Adjust ping command based on OS
-        if platform.system().lower() == "windows":
+        system = platform.system().lower()
+        if system == "windows":
             ping_cmd = ['ping', '-n', '1', '-w', '2000', host]
-        else:
+        elif system == "darwin":  # macOS
+            ping_cmd = ['ping', '-c', '1', '-t', '2', host]
+        else:  # Linux
             ping_cmd = ['ping', '-c', '1', '-W', '2', host]
         
         result = subprocess.run(
@@ -37,9 +39,12 @@ def check_rdp_connection(ip):
         if result == 0:  # Port is open
             try:
                 # Try to get netstat info if available
-                if platform.system().lower() == "windows":
+                system = platform.system().lower()
+                if system == "windows":
                     netstat_cmd = ['netstat', '-n']
-                else:
+                elif system == "darwin":  # macOS
+                    netstat_cmd = ['netstat', '-n', '-p', 'tcp']
+                else:  # Linux
                     netstat_cmd = ['netstat', '-tn']
                 
                 netstat_result = subprocess.run(
@@ -51,7 +56,7 @@ def check_rdp_connection(ip):
                 
                 # Look for established RDP connections
                 for line in netstat_output.split('\n'):
-                    if ip in line and ':3389' in line and 'ESTABLISHED' in line:
+                    if ip in line and ':3389' in line and ('ESTABLISHED' in line or 'EST' in line):  # macOS shows 'EST'
                         # Extract the client IP
                         parts = line.split()
                         for part in parts:
