@@ -4,7 +4,7 @@ import platform
 from app import db, pc_names, app
 from app.models import Status
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 
 def ping_host(host):
     """Ping a host and return True if it responds, False otherwise."""
@@ -31,41 +31,30 @@ def check_pc_in_use(name, ip):
     """Check if a PC is in use by trying multiple connection attempts.
     Returns (is_in_use, client_info)
     """
-    # Try multiple connection attempts to be sure
-    for attempt in range(3):
-        try:
-            # Create a new socket for each attempt
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.settimeout(0.3)  # Very short timeout for quick checks
+    # First check if we have a recent heartbeat
+    recent_cut = datetime.utcnow() - timedelta(seconds=90)
+    status = Status.query.filter_by(domain_name=name).first()
+    if status and status.username and status.last_heartbeat and status.last_heartbeat >= recent_cut:
+        print(f"{name} is in use (active heartbeat from {status.username})")
+        return True, f"Active user: {status.username}"
+
+    # If no recent heartbeat, try RDP check
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(1)
+        result = sock.connect_ex((ip, 3389))
+        sock.close()
+        
+        if result != 0:
+            print(f"RDP port closed on {ip} - likely in use")
+            return True, "RDP port in use"
+        
+        print(f"RDP port available on {ip}")
+        return False, None
             
-            try:
-                # Try to connect to RDP port
-                result = sock.connect_ex((ip, 3389))
-                sock.close()
-                
-                if result != 0:
-                    print(f"Attempt {attempt + 1}: Could not connect to RDP port on {ip} (result={result})")
-                    # If we can't connect, the PC is likely in use
-                    # No need to try more attempts
-                    return True, "RDP session active"
-                else:
-                    print(f"Attempt {attempt + 1}: Successfully connected to RDP port on {ip}")
-                    # Even if we can connect, try additional attempts to be sure
-                    time.sleep(0.1)  # Short delay between attempts
-                    
-            except socket.error as e:
-                sock.close()
-                print(f"Attempt {attempt + 1}: Socket error on {ip}: {e}")
-                # Socket error usually means the port is in use
-                return True, "RDP port in use"
-                
-        except Exception as e:
-            print(f"Attempt {attempt + 1}: General error checking {ip}: {e}")
-            continue
-    
-    # If we get here, we were able to connect multiple times
-    # This means the PC is likely available
-    return False, None
+    except Exception as e:
+        print(f"Error checking RDP: {e}")
+        return False, None
 
 def status_check():
     print(f"\nStarting status check at {datetime.now()}")
