@@ -1,5 +1,6 @@
 import subprocess
 import socket
+import platform
 from app import db, pc_names, app
 from app.models import Status
 import time
@@ -8,42 +9,68 @@ from datetime import datetime
 def ping_host(host):
     """Ping a host and return True if it responds, False otherwise."""
     try:
+        # Adjust ping command based on OS
+        if platform.system().lower() == "windows":
+            ping_cmd = ['ping', '-n', '1', '-w', '2000', host]
+        else:
+            ping_cmd = ['ping', '-c', '1', '-W', '2', host]
+        
         result = subprocess.run(
-            ['ping', '-c', '1', '-W', '1', host],
+            ping_cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            timeout=2)
+            timeout=3)  # Increased timeout
         return result.returncode == 0
-    except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
+    except Exception as e:
+        print(f"Ping error: {e}")
         return False
 
 def check_rdp_connection(ip):
     """Check if RDP port is in use."""
     try:
-        # Check for RDP connection
+        # First check if port is open
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(1)
+        sock.settimeout(2)  # Increased timeout
         result = sock.connect_ex((ip, 3389))
         sock.close()
         
         if result == 0:  # Port is open
-            # Get netstat info for this IP
-            netstat_result = subprocess.run(
-                ['netstat', '-n'],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                timeout=2)
-            netstat_output = netstat_result.stdout.decode()
-            
-            # Look for established RDP connections
-            for line in netstat_output.split('\n'):
-                if ip in line and ':3389' in line and 'ESTABLISHED' in line:
-                    # Extract the client IP
-                    client_ip = line.split()[4].split(':')[0]
-                    return True, client_ip
-            
-            return False, None
-    except:
+            try:
+                # Try to get netstat info if available
+                if platform.system().lower() == "windows":
+                    netstat_cmd = ['netstat', '-n']
+                else:
+                    netstat_cmd = ['netstat', '-tn']
+                
+                netstat_result = subprocess.run(
+                    netstat_cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    timeout=3)
+                netstat_output = netstat_result.stdout.decode()
+                
+                # Look for established RDP connections
+                for line in netstat_output.split('\n'):
+                    if ip in line and ':3389' in line and 'ESTABLISHED' in line:
+                        # Extract the client IP
+                        parts = line.split()
+                        for part in parts:
+                            if ip in part:
+                                return True, "Active Connection"
+                
+                # If port is open but no established connection found,
+                # the system is likely available
+                return False, None
+                
+            except Exception as e:
+                print(f"Netstat error: {e}")
+                # If we can't check netstat, assume system is available
+                # since we could connect to RDP port
+                return False, None
+    except Exception as e:
+        print(f"Socket error: {e}")
+        # If we can't connect to RDP port, system might be in use
+        # or there might be network issues
         pass
     
     return False, None
@@ -51,6 +78,14 @@ def check_rdp_connection(ip):
 def status_check():
     print(f"\nStarting status check at {datetime.now()}")
     with app.app_context():
+        # First, clean up old records
+        try:
+            db.session.query(Status).delete()
+            db.session.commit()
+        except Exception as e:
+            print(f"Error cleaning old records: {e}")
+            db.session.rollback()
+
         for name in pc_names.keys():
             print(f"\nChecking {name}...")
             ip = pc_names[name]
@@ -64,44 +99,32 @@ def status_check():
 
             if not (host_up or ip_up):
                 print(f"{name} is down")
-                stat = Status(
-                    domain_name=name,
-                    ip_address=ip,
-                    state="System Down",
-                    username='',
-                    session_name='',
-                    session_id='',
-                    idle_time='',
-                    logon_time='',
-                    last_update=datetime.now())
+                state = "System Down"
+                extra_info = "Not responding to ping"
             else:
                 # Check if the system is in use
-                in_use, client_ip = check_rdp_connection(ip)
+                in_use, client_info = check_rdp_connection(ip)
                 
                 if in_use:
-                    print(f"{name} is in use (connected from {client_ip})")
-                    stat = Status(
-                        domain_name=name,
-                        ip_address=ip,
-                        state="In Use",
-                        username='Remote User',
-                        session_name=f'RDP from {client_ip}',
-                        session_id='1',
-                        idle_time='0',
-                        logon_time=datetime.now().strftime('%I:%M:%S %p'),
-                        last_update=datetime.now())
+                    print(f"{name} is in use")
+                    state = "In Use"
+                    extra_info = client_info
                 else:
                     print(f"{name} is available")
-                    stat = Status(
-                        domain_name=name,
-                        ip_address=ip,
-                        state="Available",
-                        username='',
-                        session_name='',
-                        session_id='',
-                        idle_time='',
-                        logon_time='',
-                        last_update=datetime.now())
+                    state = "Available"
+                    extra_info = ""
+
+            # Create status record
+            stat = Status(
+                domain_name=name,
+                ip_address=ip,
+                state=state,
+                username='Remote User' if state == "In Use" else '',
+                session_name=extra_info if state == "In Use" else '',
+                session_id='1' if state == "In Use" else '',
+                idle_time='0' if state == "In Use" else '',
+                logon_time=datetime.now().strftime('%I:%M:%S %p') if state == "In Use" else '',
+                last_update=datetime.now())
 
             try:
                 db.session.add(stat)
