@@ -1,2 +1,3 @@
-.\venv\Scripts\activate
-waitress-serve --port=5000 app:app
+@echo off
+call venv\Scripts\activate
+python -m flask run --host=0.0.0.0 --port=5000
