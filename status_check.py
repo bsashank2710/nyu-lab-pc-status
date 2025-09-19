@@ -36,53 +36,51 @@ def check_rdp_connection(ip):
     try:
         # Try to connect to RDP port
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(2)  # Increased timeout
+        sock.settimeout(1)  # Reduced timeout for faster checks
         result = sock.connect_ex((ip, 3389))
         sock.close()
+
+        # Get netstat info for additional verification
+        system = platform.system().lower()
+        if system == "windows":
+            netstat_cmd = ['netstat', '-n']
+        elif system == "darwin":  # macOS
+            netstat_cmd = ['netstat', '-n', '-p', 'tcp']
+        else:  # Linux
+            netstat_cmd = ['netstat', '-tn']
         
-        # If we can't connect to the port, it's likely in use
-        if result != 0:
-            return True, "RDP session active"
-            
-        # If we can connect, check netstat to confirm no active connections
         try:
-            system = platform.system().lower()
-            if system == "windows":
-                netstat_cmd = ['netstat', '-n']
-            elif system == "darwin":  # macOS
-                netstat_cmd = ['netstat', '-n', '-p', 'tcp']
-            else:  # Linux
-                netstat_cmd = ['netstat', '-tn']
-            
             netstat_result = subprocess.run(
                 netstat_cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                timeout=3)
+                timeout=2)
             netstat_output = netstat_result.stdout.decode()
             
             # Look for established RDP connections
+            rdp_established = False
             for line in netstat_output.split('\n'):
                 if ip in line and ':3389' in line and ('ESTABLISHED' in line or 'EST' in line):
-                    return True, "Active RDP connection"
+                    rdp_established = True
+                    break
             
-            # If we can connect and no established connections found,
-            # the system is available
+            # If port is closed OR we see an established connection, PC is in use
+            if result != 0 or rdp_established:
+                return True, "RDP session active"
+            
+            # Otherwise, PC is available
             return False, None
             
         except Exception as e:
             print(f"Netstat error: {e}")
-            # If netstat check fails but we could connect to RDP port,
-            # assume system is available
-            return False, None
+            # If netstat check fails, rely only on port check
+            return result != 0, "RDP port check only"
             
     except Exception as e:
         print(f"Socket error: {e}")
         # If we can't even create/use the socket, something is wrong
-        # Assume system is down rather than in use
-        return False, None
-    
-    return False, None
+        # In this case, assume PC might be in use since we can't verify
+        return True, "Connection check failed"
 
 def status_check():
     print(f"\nStarting status check at {datetime.now()}")
@@ -115,7 +113,7 @@ def status_check():
                 in_use, client_info = check_rdp_connection(ip)
                 
                 if in_use:
-                    print(f"{name} is in use")
+                    print(f"{name} is in use ({client_info})")
                     state = "In Use"
                     extra_info = client_info
                 else:
