@@ -33,41 +33,80 @@ def get_last_update():
 @app.route('/index')
 def index():
     status_dict = {}
-    available_count = 0
-    in_use_count = 0
-    down_count = 0
+    w_count = 0  # Available count
+    in_use_count = 0  # In Use count
+    d_count = 0  # Down count
     last_update = None
     
-    for name in pc_names.keys():
-        try:
-            stat = (
-                Status.query
-                .filter_by(domain_name=name)
-                .order_by(Status.last_update.desc())
-                .first())
+    try:
+        # First, get the latest status for all PCs
+        latest_stats = (
+            Status.query
+            .from_self()
+            .filter(
+                Status.domain_name.in_(pc_names.keys())
+            )
+            .order_by(Status.last_update.desc())
+            .all()
+        )
+
+        # Create a dict of most recent status per PC
+        pc_latest_status = {}
+        for stat in latest_stats:
+            if stat.domain_name not in pc_latest_status:
+                pc_latest_status[stat.domain_name] = stat
+
+        # Process each PC's status
+        for name in pc_names.keys():
+            stat = pc_latest_status.get(name)
             if stat:
                 status_dict[name] = [
-                    stat.ip_address, stat.username, stat.session_name,
-                    stat.session_id, stat.state, stat.idle_time,
-                    stat.logon_time, stat.last_update]
+                    stat.ip_address,
+                    stat.username,
+                    stat.session_name,
+                    stat.session_id,
+                    stat.state,
+                    stat.idle_time,
+                    stat.logon_time,
+                    stat.last_update
+                ]
+                
+                # Update counts
                 if stat.state == 'Available':
-                    available_count += 1
+                    w_count += 1
                 elif stat.state == 'In Use':
                     in_use_count += 1
                 elif stat.state == 'System Down':
-                    down_count += 1
+                    d_count += 1
+                
+                # Track most recent update
                 if not last_update or (stat.last_update and stat.last_update > last_update):
                     last_update = stat.last_update
-        except Exception as e:
-            print(f"Error getting status for {name}: {e}")
-            continue
-    
-    return render_template('index.html', 
-                         title='Home', 
+            else:
+                # If no status found, mark as down
+                status_dict[name] = [
+                    pc_names[name],  # IP address
+                    '', '', '', 'System Down', '', '', None
+                ]
+                d_count += 1
+
+    except Exception as e:
+        print(f"Error in index route: {e}")
+        # Return empty data on error
+        return render_template('index.html',
+                            title='Home',
+                            status_dict={},
+                            w_count=0,
+                            in_use_count=0,
+                            d_count=0,
+                            last_update='Never')
+
+    return render_template('index.html',
+                         title='Home',
                          status_dict=status_dict,
-                         w_count=available_count,
-                         i_count=in_use_count,
-                         d_count=down_count,
+                         w_count=w_count,
+                         in_use_count=in_use_count,
+                         d_count=d_count,
                          last_update=last_update.strftime('%I:%M:%S %p') if last_update else 'Never')
 
 
@@ -117,6 +156,9 @@ gatewayaccesstoken:s:
 
 @app.route("/get-rdp-file/<domain_name>")
 def get_rdp_file(domain_name):
+    if domain_name not in pc_names:
+        return "Invalid PC name", 400
+        
     contents = rdp_file_contents.format(pc_names[domain_name])
 
     return Response(
