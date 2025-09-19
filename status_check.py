@@ -36,8 +36,8 @@ def check_pc_in_use(name, ip):
     status = Status.query.filter_by(domain_name=name).first()
     if status and status.username and status.last_heartbeat and status.last_heartbeat >= recent_cut:
         print(f"{name} is in use (active heartbeat from {status.username})")
-        return True, f"Active user: {status.username}"
-
+        return True, f"Active user: {status.username}", status.username, status.last_heartbeat
+    
     # If no recent heartbeat, try RDP check
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -47,27 +47,19 @@ def check_pc_in_use(name, ip):
         
         if result != 0:
             print(f"RDP port closed on {ip} - likely in use")
-            return True, "RDP port in use"
+            return True, "RDP port in use", None, None
         
         print(f"RDP port available on {ip}")
-        return False, None
+        return False, None, None, None
             
     except Exception as e:
         print(f"Error checking RDP: {e}")
-        return False, None
+        return False, None, None, None
 
 def status_check():
     print(f"\nStarting status check at {datetime.now()}")
     
     with app.app_context():
-        # First, clean up old records
-        try:
-            db.session.query(Status).delete()
-            db.session.commit()
-        except Exception as e:
-            print(f"Error cleaning old records: {e}")
-            db.session.rollback()
-
         for name in pc_names.keys():
             print(f"\nChecking {name}...")
             ip = pc_names[name]
@@ -83,9 +75,11 @@ def status_check():
                 print(f"{name} is down")
                 state = "System Down"
                 extra_info = "Not responding to ping"
+                username = ""
+                last_heartbeat = None
             else:
                 # Check if the system is in use
-                in_use, client_info = check_pc_in_use(name, ip)
+                in_use, client_info, username, last_heartbeat = check_pc_in_use(name, ip)
                 
                 if in_use:
                     print(f"{name} is in use ({client_info})")
@@ -95,21 +89,37 @@ def status_check():
                     print(f"{name} is available")
                     state = "Available"
                     extra_info = ""
+                    username = ""
+                    last_heartbeat = None
 
-            # Create status record
-            stat = Status(
-                domain_name=name,
-                ip_address=ip,
-                state=state,
-                username='Remote User' if state == "In Use" else '',
-                session_name=extra_info if state == "In Use" else '',
-                session_id='1' if state == "In Use" else '',
-                idle_time='0' if state == "In Use" else '',
-                logon_time=datetime.now().strftime('%I:%M:%S %p') if state == "In Use" else '',
-                last_update=datetime.now())
-
+            # Update or create status record
             try:
-                db.session.add(stat)
+                status = Status.query.filter_by(domain_name=name).first()
+                if not status:
+                    status = Status(domain_name=name)
+                
+                status.ip_address = ip
+                status.state = state
+                status.session_name = extra_info
+                status.last_update = datetime.now()
+                
+                # Only update user-related fields if we're setting them
+                if username is not None:
+                    status.username = username
+                if last_heartbeat is not None:
+                    status.last_heartbeat = last_heartbeat
+                
+                # Update other fields only if marking as in use
+                if state == "In Use":
+                    status.session_id = '1'
+                    status.idle_time = '0'
+                    status.logon_time = datetime.now().strftime('%I:%M:%S %p')
+                elif state == "Available":
+                    status.session_id = ''
+                    status.idle_time = ''
+                    status.logon_time = ''
+
+                db.session.add(status)
                 db.session.commit()
                 print(f"Updated status for {name} in database")
             except Exception as e:
